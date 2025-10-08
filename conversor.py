@@ -1,9 +1,12 @@
 import os
 from PIL import Image
 import pdfkit
+from reportlab.pdfgen import canvas
+from pptx import Presentation
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
 
-# Obs: tirei o pypandoc/docx2pdf porque eles dão mais dor de cabeça para iniciante
-# Agora vamos trabalhar só com textos simples, imagens e html
+
 
 def convert_to_pdf(input_file):
     # Pega a extensão do arquivo (exemplo: .png, .html, etc)
@@ -22,11 +25,44 @@ def convert_to_pdf(input_file):
     elif ext == ".html":
         print("Convertendo HTML para PDF...")
         pdfkit.from_file(input_file, output_file)
+        # Se for PowerPoint (.pptx) -> usa python-pptx + reportlab
+    elif ext in [".ppt", ".pptx"]:
+        print("Convertendo PowerPoint para PDF...")
+
+
+        prs = Presentation(input_file)
+        output_file = input_file.replace(ext, ".pdf")
+
+        c = canvas.Canvas(output_file, pagesize=A4)
+        width, height = A4
+
+        for slide_num, slide in enumerate(prs.slides, start=1):
+            y = height - 50
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, y, f"Slide {slide_num}")
+            y -= 30
+
+            # percorre todos os shapes (caixas de texto, títulos etc)
+            for shape in slide.shapes:
+                if hasattr(shape, "text"):
+                    texto = shape.text.strip()
+                    if texto:
+                        c.setFont("Helvetica", 11)
+                        for linha in texto.splitlines():
+                            c.drawString(60, y, linha[:100])  # corta se for muito longo
+                            y -= 15
+                            if y < 50:  # cria nova página se acabar o espaço
+                                c.showPage()
+                                y = height - 50
+
+            c.showPage()
+
+        c.save()
+
 
     # Se for TXT simples -> converte "na unha"
     elif ext == ".txt":
         print("Convertendo TXT para PDF...")
-        from reportlab.pdfgen import canvas
         c = canvas.Canvas(output_file)
         with open(input_file, "r", encoding="utf-8") as f:
             linhas = f.readlines()
